@@ -31,8 +31,8 @@
 | カテゴリ | 技術 | 用途 |
 |---------|------|------|
 | **Orchestration** | **LangGraph** (Python) | 状態遷移図に基づくエージェント制御、循環ループ、条件分岐の実装 |
-| **Foundation Model** | **Claude 3.5 Sonnet / 3.7** (via Anthropic API) | 推論、計画、コード生成、レビュー |
-| **Database & Interface** | **Obsidian** (Local Markdown Files) | フロントエンドおよびデータベースとして機能 |
+| **Foundation Model** | **Claude 4.5 Sonnet** (ベース、via Anthropic API) / **任意のAIモデル** (各種API経由) | 推論、計画、コード生成、レビュー。各エージェントごとにAIモデルを選択可能 |
+| **Database & Interface** | **Obsidian** (Local Markdown Files) | データベースとして機能し、ユーザーインターフェースでもある |
 | **Data Structure** | **YAML Frontmatter** | エージェント属性、リレーション、ルール属性の管理 |
 | **Tools** | **Browser-use** | Web操作 |
 | **Tools** | **Zapier** | アプリ連携 |
@@ -48,11 +48,23 @@
   ├── 10_Decision_Board/       # [User I/O] 承認・決裁・相談案件の提示
   ├── 20_Approved_Outputs/     # [Storage] 承認済み成果物のアーカイブ
   ├── 30_Work_Space/           # [Runtime] 作業用一時領域（ステート管理対象）
-  │   ├── 01_Drafts/           # 作成中の成果物
-  │   └── 02_Review_Logs/      # 修正指示・レビュー記録
+  │   ├── 01_Drafts/           # 作成中の成果物（エージェントIDでサブディレクトリ分離）
+  │   └── 02_Review_Logs/      # 修正指示・レビュー記録（エージェントIDでサブディレクトリ分離）
   ├── 80_Team_Profiles/        # [DB: HR] エージェント定義ファイル（YAML+MD）
-  ├── 90_Rules/                # [DB: Legal] 業務ルール・ガイドライン
+  ├── 90_Rules/                # [DB: Legal] 業務ルール・ガイドライン（階層管理）
+  │   ├── 00_Global/           # 全社共通ルール（全エージェントに適用）
+  │   ├── 10_Dept/             # 部門ルール（特定部門に適用）
+  │   │   ├── [dept_id_1]/     # 部門ごとのルールディレクトリ
+  │   │   └── [dept_id_2]/
+  │   └── 20_Cross_Dept/       # 複数部門共通ルール
   ├── 95_Library/              # [DB: Knowledge] 共有ナレッジ・外部情報・学習履歴
+  │   ├── 00_Global/           # 全社共有ナレッジ
+  │   └── 10_Dept/             # 部門共有ナレッジ
+  ├── 96_Agents/               # [DB: Agent-Specific] エージェント個別領域
+  │   └── [agent_id]/          # エージェントごとのディレクトリ
+  │       ├── Rules/           # 個人ルール（このエージェント専用）
+  │       ├── Library/         # 個人ナレッジ（このエージェントが収集した知識）
+  │       └── Work_Space/      # 個人作業領域（必要に応じて）
   └── 99_Logs/                 # [System] 実行ログ・コスト管理ログ
 ```
 
@@ -64,11 +76,17 @@
 | `10_Decision_Board/` | 承認・決裁・相談案件の提示 | System → User | Userの意思決定を待つ領域 |
 | `20_Approved_Outputs/` | 承認済み成果物のアーカイブ | System | 最終的な成果物を永続保存 |
 | `30_Work_Space/` | 作業用一時領域 | System (Runtime) | LangGraphのステート管理対象 |
-| `30_Work_Space/01_Drafts/` | 作成中の成果物 | System | 作業中のドラフトを保存 |
-| `30_Work_Space/02_Review_Logs/` | 修正指示・レビュー記録 | System | レビュー履歴を記録 |
+| `30_Work_Space/01_Drafts/[agent_id]/` | 作成中の成果物 | System | エージェントごとに分離された作業中のドラフト |
+| `30_Work_Space/02_Review_Logs/[agent_id]/` | 修正指示・レビュー記録 | System | エージェントごとに分離されたレビュー履歴 |
 | `80_Team_Profiles/` | エージェント定義ファイル | System | YAML+MD形式でエージェント情報を管理 |
-| `90_Rules/` | 業務ルール・ガイドライン | System | 全社ルール、部門ルールを管理 |
-| `95_Library/` | 共有ナレッジ・外部情報・学習履歴 | System | 汎用的な知識を体系化して保存 |
+| `90_Rules/00_Global/` | 全社共通ルール | System | 全エージェントに適用されるルール |
+| `90_Rules/10_Dept/[dept_id]/` | 部門ルール | System | 特定部門に適用されるルール |
+| `90_Rules/20_Cross_Dept/` | 複数部門共通ルール | System | 複数の部門に共通して適用されるルール |
+| `95_Library/00_Global/` | 全社共有ナレッジ | System | 全エージェントが参照可能な知識 |
+| `95_Library/10_Dept/[dept_id]/` | 部門共有ナレッジ | System | 特定部門内で共有される知識 |
+| `96_Agents/[agent_id]/Rules/` | 個人ルール | System | 特定エージェント専用のルール |
+| `96_Agents/[agent_id]/Library/` | 個人ナレッジ | System | エージェントが個別に収集・蓄積した知識 |
+| `96_Agents/[agent_id]/Work_Space/` | 個人作業領域 | System | エージェント専用の作業領域（必要に応じて） |
 | `99_Logs/` | 実行ログ・コスト管理ログ | System | システムの動作記録とコスト追跡 |
 
 ---
@@ -106,12 +124,20 @@ tools:                          # 使用可能ツール（必須）
   - "file_write"
   - "agent_creation"
   - "browser_use"
-subscription_rules:             # 遵守すべきルールID（必須）
-  - "rule_constitution"         # 全社憲法
-  - "rule_marketing_dept"       # 部門ルール
+subscription_rules:             # 遵守すべきルールID（必須、階層的）
+  - "00_Global/rule_constitution"      # 全社ルール
+  - "10_Dept/marketing/rule_branding"  # 部門ルール（部門ID/ルール名）
+  - "20_Cross_Dept/rule_collaboration"  # 複数部門共通ルール
+  # 個人ルールは自動的に 96_Agents/[agent_id]/Rules/ から読み込まれる
 read_access_library:            # 参照すべきナレッジカテゴリ（任意）
-  - "Trends"
-  - "Best_Practices"
+  - "00_Global/Trends"          # 全社共有ナレッジ
+  - "10_Dept/marketing/Best_Practices" # 部門共有ナレッジ
+  # 個人ナレッジは自動的に 96_Agents/[agent_id]/Library/ から読み込まれる
+# --- AIモデル設定 ---
+foundation_model:                # 使用するAIモデル（必須）
+  provider: "anthropic"         # APIプロバイダー（anthropic, openai, google, etc.）
+  model: "claude-4-5-sonnet"    # モデル名（例: claude-4-5-sonnet, gpt-4, gemini-pro）
+  api_key_env: "ANTHROPIC_API_KEY"  # 環境変数名（.envファイルから読み込み）
 # --- 自己進化パラメータ ---
 learned_lessons:                # タスク完了ごとに追記される学習履歴（任意）
   - "2025-01-01: Xの投稿は朝7時が最適である"
@@ -132,6 +158,7 @@ learned_lessons:                # タスク完了ごとに追記される学習�
 | `tools` | array[string] | ✓ | エージェントが使用可能なツールのリスト |
 | `subscription_rules` | array[string] | ✓ | 遵守すべきルールファイルのIDリスト |
 | `read_access_library` | array[string] | 任意 | 参照可能なナレッジライブラリのカテゴリ |
+| `foundation_model` | object | ✓ | エージェントが使用するAIモデルの設定（provider, model, api_key_env） |
 | `learned_lessons` | array[string] | 任意 | タスク完了時に追記される学習履歴 |
 
 ---
@@ -151,13 +178,17 @@ learned_lessons:                # タスク完了ごとに追記される学習�
 
 2. **Assignment（割り当て）**
    - 担当Managerへタスクを割り当て
-   - タスク情報を `30_Work_Space/01_Drafts/` に記録
+   - タスク情報を `30_Work_Space/01_Drafts/[agent_id]/` に記録
 
 3. **Critique（批判的検証 - Bottom-up）**
    - 指示を受けたエージェントは即座に実行せず、以下を実施：
-     - 自身のナレッジ（`learned_lessons`）を参照
-     - 共有ライブラリ（`95_Library/`）を検索
-     - 関連ルール（`90_Rules/`）を確認
+     - 自身のナレッジ（`learned_lessons`、`96_Agents/[agent_id]/Library/`）を参照
+     - 共有ライブラリ（`95_Library/00_Global/`、`95_Library/10_Dept/[dept_id]/`）を検索
+     - 関連ルールを階層的に確認：
+       - 全社ルール（`90_Rules/00_Global/`）
+       - 部門ルール（`90_Rules/10_Dept/[dept_id]/`）
+       - 複数部門共通ルール（`90_Rules/20_Cross_Dept/`）
+       - 個人ルール（`96_Agents/[agent_id]/Rules/`）
    - **指示の妥当性を検証**
    - 矛盾やリスクがある場合：
      - 代替案を提示
@@ -175,14 +206,16 @@ learned_lessons:                # タスク完了ごとに追記される学習�
 
 1. **Drafting（ドラフト作成）**
    - Workerがツールを使用してドラフトを作成
-   - ドラフトは `30_Work_Space/01_Drafts/` に保存
+   - ドラフトは `30_Work_Space/01_Drafts/[agent_id]/` に保存
    - ドラフトにはメタデータ（作成者、作成日時、関連タスクID等）を付与
 
 2. **Review（Manager審査）**
    - 直属のManagerが成果物を審査
    - **審査基準:**
-     - 憲法（`90_Rules/rule_constitution.md`）との整合性
-     - 部門ルール（`90_Rules/rule_[dept].md`）との整合性
+     - 全社ルール（`90_Rules/00_Global/`）との整合性
+     - 部門ルール（`90_Rules/10_Dept/[dept_id]/`）との整合性
+     - 複数部門共通ルール（`90_Rules/20_Cross_Dept/`）との整合性
+     - 個人ルール（`96_Agents/[agent_id]/Rules/`）との整合性
      - 指示内容との整合性
      - 品質基準（明確性、完全性、実現可能性）
 
@@ -190,14 +223,20 @@ learned_lessons:                # タスク完了ごとに追記される学習�
 
    **NG（差し戻し）の場合:**
    - 具体的な修正理由を添えて差し戻す
-   - 修正理由は `30_Work_Space/02_Review_Logs/` に記録
+   - 修正理由は `30_Work_Space/02_Review_Logs/[agent_id]/` に記録
+   - **ルール振り分け（Rule Routing）:** Managerは指摘内容を分析し、以下のいずれかに分類してルール化する：
+     - **全社ルール** (`90_Rules/00_Global/`): 全エージェントに適用すべき指摘
+     - **部門ルール** (`90_Rules/10_Dept/[dept_id]/`): 特定部門に適用すべき指摘
+     - **複数部門共通ルール** (`90_Rules/20_Cross_Dept/`): 複数部門に共通して適用すべき指摘
+     - **個人ルール** (`96_Agents/[agent_id]/Rules/`): 特定エージェントのみに適用すべき指摘
+   - ルール化により、同じ指摘を繰り返さない仕組みを実現
    - **Loop Limit:** 修正ループは**最大5回**まで
    - 5回超過時は自動的にエスカレーション（上位階層へ相談チケット発行）
 
    **OK（承認）の場合:**
    - 成果物を承認
    - 上位階層へ統合（または `20_Approved_Outputs/` へ移動）
-   - 承認記録を `30_Work_Space/02_Review_Logs/` に保存
+   - 承認記録を `30_Work_Space/02_Review_Logs/[agent_id]/` に保存
 
 #### 4.2.2 実装要件
 
@@ -218,7 +257,11 @@ learned_lessons:                # タスク完了ごとに追記される学習�
 
 2. **Knowledge Sharing（ナレッジ共有）**
    - 汎用性が高い知見（成功事例、市場トレンド等）を判定
-   - 該当する知見は `95_Library/` 内に新規Markdownファイルとして体系化・保存
+   - **ナレッジの振り分け:**
+     - **全社共有ナレッジ** (`95_Library/00_Global/`): 全エージェントが参照すべき知識
+     - **部門共有ナレッジ** (`95_Library/10_Dept/[dept_id]/`): 特定部門内で共有すべき知識
+     - **個人ナレッジ** (`96_Agents/[agent_id]/Library/`): エージェントが個別に収集・蓄積した知識
+   - 該当する知見は適切なディレクトリに新規Markdownファイルとして体系化・保存
    - ファイル名は `[カテゴリ]_[日付]_[タイトル].md` 形式
    - YAML Frontmatterでメタデータ（作成者、関連タスク、カテゴリ等）を付与
 
@@ -267,9 +310,16 @@ learned_lessons:                # タスク完了ごとに追記される学習�
   - Managerがレビューを通じて頻出する指摘事項を発見
   - 既存ルールの不備や矛盾を発見
 - **処理:**
-  - Managerは担当するルールファイル（例: `90_Rules/Marketing.md`）を直接編集・更新
-  - 更新履歴をルールファイル内に記録
+  - Managerは指摘内容を分析し、適切なルール階層に振り分けて記録
+  - **ルール振り分けの判断基準:**
+    - 全社ルール: 複数の部門で発生する可能性がある指摘、組織全体の方針に関わる指摘
+    - 部門ルール: 特定部門の業務特性に特化した指摘
+    - 複数部門共通ルール: 2つ以上の部門に共通して適用すべき指摘
+    - 個人ルール: 特定エージェントのスキルや特性に特化した指摘
+  - ルールファイルを直接編集・更新
+  - 更新履歴をルールファイル内に記録（YAML Frontmatterに `updated_at`, `updated_by`, `related_review_log` を記録）
   - 重大な変更の場合は `10_Decision_Board/` に通知
+  - **重複防止:** 既存ルールと類似の指摘がないか検索し、重複を避ける
 
 ---
 
@@ -345,11 +395,30 @@ learned_lessons:                # タスク完了ごとに追記される学習�
 #### 5.3.2 ルールの階層管理
 
 - **要件:**
-  - 全社ルールと部門ルールを階層的に管理
+  - 全社ルール、部門ルール、複数部門共通ルール、個人ルールを階層的に管理
   - 新しい部門やルールカテゴリを容易に追加可能
+  - エージェントごとに個別のルール領域を提供
 - **実装:**
-  - `90_Rules/` 内でカテゴリ別にディレクトリを分割
-  - ルールの継承メカニズムを実装（全社ルール → 部門ルール）
+  - `90_Rules/` 内で階層別にディレクトリを分割（00_Global, 10_Dept, 20_Cross_Dept）
+  - `96_Agents/[agent_id]/Rules/` で個人ルールを管理
+  - ルールの継承メカニズムを実装（全社ルール → 部門ルール → 個人ルール）
+  - エージェントは自身が適用される全階層のルールを自動的に読み込む
+
+#### 5.3.3 ルール振り分け機能（Rule Routing）
+
+- **要件:**
+  - レビュー時の指摘を適切なルール階層に自動振り分け
+  - 同じ指摘の重複を防止
+  - 指摘の適用範囲を明確化
+- **実装:**
+  - Managerがレビュー時に指摘を分類する機能を実装
+  - 指摘内容を分析し、適用範囲を判定：
+    - 全社適用: 複数部門で発生する可能性がある指摘
+    - 部門適用: 特定部門の業務特性に特化した指摘
+    - 複数部門共通: 2つ以上の部門に共通する指摘
+    - 個人適用: 特定エージェントのスキルや特性に特化した指摘
+  - 既存ルールとの類似度検索機能を実装（重複防止）
+  - ルールファイルに `related_review_log` を記録し、指摘の出所を追跡可能にする
 
 ---
 
@@ -357,13 +426,19 @@ learned_lessons:                # タスク完了ごとに追記される学習�
 
 ### 6.1 ディレクトリ構造
 - [ ] `AI_Manager_Root` ディレクトリと全サブディレクトリを作成
-- [ ] 各ディレクトリの用途を明確化
+- [ ] システム全体の共有ディレクトリ（00_Strategy_Input, 10_Decision_Board等）を作成
+- [ ] ルール階層ディレクトリ（90_Rules/00_Global, 10_Dept, 20_Cross_Dept）を作成
+- [ ] ナレッジ階層ディレクトリ（95_Library/00_Global, 10_Dept）を作成
+- [ ] エージェント個別領域ディレクトリ（96_Agents/[agent_id]/）の動的生成機能を実装
+- [ ] エージェントごとの作業領域分離（30_Work_Space/01_Drafts/[agent_id]/等）を実装
 
 ### 6.2 エージェントシステム
 - [ ] `AgentNode` クラスを実装
 - [ ] YAML Frontmatterパーサーを実装
 - [ ] エージェントの動的生成機能を実装
 - [ ] 階層構造（supervisor_id）の管理機能を実装
+- [ ] Foundation Model選択機能を実装（各エージェントごとに異なるAIモデルを使用可能）
+- [ ] 複数APIプロバイダー（Anthropic, OpenAI, Google等）の統合
 
 ### 6.3 LangGraph実装
 - [ ] ステートマシンの定義
@@ -397,9 +472,18 @@ learned_lessons:                # タスク完了ごとに追記される学習�
 - [ ] ナレッジ検索機能（セマンティック検索）
 
 ### 6.8 ルール管理
-- [ ] ルールファイルの読み込み機能
-- [ ] ルールの階層管理
+- [ ] ルールファイルの読み込み機能（階層的読み込み）
+- [ ] ルールの階層管理（全社、部門、複数部門共通、個人）
 - [ ] ルール更新機能
+- [ ] ルール振り分け機能（Rule Routing）の実装
+- [ ] 既存ルールとの類似度検索機能（重複防止）
+- [ ] エージェントごとの個人ルール領域管理（96_Agents/[agent_id]/Rules/）
+- [ ] ルールの適用範囲判定ロジック
+
+### 6.9 ナレッジ管理（拡張）
+- [ ] ナレッジの階層管理（全社、部門、個人）
+- [ ] ナレッジ振り分け機能（全社/部門/個人の判定）
+- [ ] エージェントごとの個人ナレッジ領域管理（96_Agents/[agent_id]/Library/）
 
 ---
 
@@ -416,10 +500,41 @@ learned_lessons:                # タスク完了ごとに追記される学習�
 
 ---
 
-## 8. 参考資料
+## 8. Foundation Model設定仕様
+
+### 8.1 対応プロバイダー
+
+システムは以下のAI APIプロバイダーに対応する：
+
+| プロバイダー | 環境変数名 | 対応モデル例 |
+|------------|----------|------------|
+| **Anthropic** | `ANTHROPIC_API_KEY` | claude-4-5-sonnet, claude-3-5-sonnet, claude-3-7-sonnet |
+| **OpenAI** | `OPENAI_API_KEY` | gpt-4, gpt-4-turbo, gpt-3.5-turbo |
+| **Google** | `GOOGLE_API_KEY` | gemini-pro, gemini-ultra |
+| **その他** | カスタム | カスタムAPIエンドポイントに対応 |
+
+### 8.2 モデル選択の原則
+
+- **デフォルト:** Claude 4.5 Sonnet（ベースモデル）
+- **個別設定:** 各エージェントのYAMLで `foundation_model` を指定
+- **コスト最適化:** タスクの重要度や複雑度に応じてモデルを選択可能
+- **フォールバック:** 指定モデルが利用不可の場合、デフォルトモデルに自動切り替え
+
+### 8.3 実装要件
+
+- 各エージェントは独立したAIモデルインスタンスを持つ
+- APIキーは `.env` ファイルから環境変数経由で読み込み
+- モデル切り替えはランタイムで動的に実行可能
+- コスト追跡はモデルごとに個別に記録
+
+---
+
+## 9. 参考資料
 
 - LangGraph公式ドキュメント: https://langchain-ai.github.io/langgraph/
 - Anthropic API ドキュメント: https://docs.anthropic.com/
+- OpenAI API ドキュメント: https://platform.openai.com/docs/
+- Google AI API ドキュメント: https://ai.google.dev/docs
 - Obsidian公式サイト: https://obsidian.md/
 - YAML Frontmatter仕様: https://jekyllrb.com/docs/front-matter/
 
