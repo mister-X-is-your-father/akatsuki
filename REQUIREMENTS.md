@@ -50,7 +50,7 @@
   ├── 30_Work_Space/           # [Runtime] 一時作業領域（自動削除対象の一時ファイルのみ）
   │   └── temp/                # 一時ファイル（ステート管理対象外の一時データ）
   ├── 80_Team_Profiles/        # [DB: HR] エージェント定義ファイル（YAML+MD）
-  │   └── [agent_id].md        # エージェント定義（96_Agents/[agent_id]/profile.mdへの参照またはシンボリックリンク）
+  │   └── team_map.md          # 全エージェントの定義とリンク地図（1ファイルに統合）
   ├── 90_Rules/                # [DB: Legal] 業務ルール・ガイドライン（階層管理）
   │   ├── 00_Global/           # 全社共通ルール（全エージェントに適用）
   │   ├── 10_Dept/             # 部門ルール（特定部門に適用）
@@ -63,7 +63,7 @@
   │       └── [dept_id]/
   ├── 96_Agents/               # [DB: Agent-Specific] エージェント個別領域（統合構成）
   │   └── [agent_id]/          # エージェントごとのディレクトリ（全データを統合）
-  │       ├── profile.md       # エージェント定義（80_Team_Profiles/[agent_id].mdの実体または参照元）
+  │       └── (profile.mdは不要 - 80_Team_Profiles/team_map.mdが正)
   │       ├── work/            # 作業領域（30_Work_Spaceの代替、エージェント固有）
   │       │   ├── drafts/      # 作成中の成果物
   │       │   └── review_logs/ # 修正指示・レビュー記録
@@ -93,13 +93,12 @@
 | `10_Decision_Board/` | 承認・決裁・相談案件の提示 | System → User | Userの意思決定を待つ領域 |
 | `20_Approved_Outputs/` | 承認済み成果物のアーカイブ | System | 最終的な成果物を永続保存 |
 | `30_Work_Space/temp/` | 一時作業領域 | System (Runtime) | 自動削除対象の一時ファイルのみ。ステート管理対象外 |
-| `80_Team_Profiles/[agent_id].md` | エージェント定義ファイル | System | YAML+MD形式。96_Agents/[agent_id]/profile.mdへの参照またはシンボリックリンク |
+| `80_Team_Profiles/team_map.md` | エージェント定義ファイル（統合） | System | 全エージェントの定義とリンク地図を1ファイルに統合。YAML Frontmatterで各エージェントの定義を管理し、本文に各エージェントへのリンク地図を形成 |
 | `90_Rules/00_Global/` | 全社共通ルール | System | 全エージェントに適用されるルール |
 | `90_Rules/10_Dept/[dept_id]/` | 部門ルール | System | 特定部門に適用されるルール |
 | `90_Rules/20_Cross_Dept/` | 複数部門共通ルール | System | 複数の部門に共通して適用されるルール |
 | `95_Library/00_Global/` | 全社共有ナレッジ | System | 全エージェントが参照可能な知識 |
 | `95_Library/10_Dept/[dept_id]/` | 部門共有ナレッジ | System | 特定部門内で共有される知識 |
-| `96_Agents/[agent_id]/profile.md` | エージェント定義（実体） | System | エージェント定義の実体。80_Team_Profilesから参照 |
 | `96_Agents/[agent_id]/work/drafts/` | 作成中の成果物 | System | エージェント固有の作業中のドラフト（30_Work_Spaceの代替） |
 | `96_Agents/[agent_id]/work/review_logs/` | 修正指示・レビュー記録 | System | エージェント固有のレビュー履歴（30_Work_Spaceの代替） |
 | `96_Agents/[agent_id]/rules/` | 個人ルール | System | 特定エージェント専用のルール |
@@ -130,9 +129,61 @@
 
 ### 3.2 エージェントデータ構造 (YAML Schema)
 
-`80_Team_Profiles/*.md` のヘッダー仕様。LangGraphはこの情報を読み取り、ノードを動的に生成する。
+`80_Team_Profiles/team_map.md` は全エージェントの定義を1ファイルに統合する。LangGraphはこの情報を読み取り、ノードを動的に生成する。
 
-#### YAML Frontmatter スキーマ
+#### ファイル構造
+
+`80_Team_Profiles/team_map.md` は以下の構造を持つ：
+
+```yaml
+---
+# ファイル全体のメタデータ
+version: "1.0"
+last_updated: "2025-12-26"
+total_agents: 10
+---
+
+# エージェント定義セクション
+
+## Agent: agent_commander
+
+```yaml
+---
+id: "agent_commander"
+type: "Manager"
+name: "General Commander"
+supervisor_id: ""  # User（空文字列）
+# ... その他の定義
+---
+```
+
+## Agent: agent_marketing_lead
+
+```yaml
+---
+id: "agent_marketing_lead"
+type: "Manager"
+name: "Marketing Director"
+supervisor_id: "agent_commander"
+# ... その他の定義
+---
+```
+
+# エージェントリンク地図
+
+## 組織構造
+
+- [[96_Agents/agent_commander/]] - General Commander
+  - [[96_Agents/agent_marketing_lead/]] - Marketing Director
+    - [[96_Agents/agent_marketing_worker_1/]] - Marketing Worker 1
+    - [[96_Agents/agent_marketing_worker_2/]] - Marketing Worker 2
+  - [[96_Agents/agent_sales_lead/]] - Sales Director
+    - [[96_Agents/agent_sales_worker_1/]] - Sales Worker 1
+```
+
+#### 個別エージェント定義スキーマ
+
+各エージェントの定義は `team_map.md` 内のYAML Frontmatterブロックで管理される：
 
 ```yaml
 ---
@@ -154,11 +205,11 @@ subscription_rules:             # 遵守すべきルールID（必須、階層�
   - "00_Global/rule_constitution"      # 全社ルール
   - "10_Dept/marketing/rule_branding"  # 部門ルール（部門ID/ルール名）
   - "20_Cross_Dept/rule_collaboration"  # 複数部門共通ルール
-  # 個人ルールは自動的に 96_Agents/[agent_id]/Rules/ から読み込まれる
+  # 個人ルールは自動的に 96_Agents/[agent_id]/rules/ から読み込まれる
 read_access_library:            # 参照すべきナレッジカテゴリ（任意）
   - "00_Global/Trends"          # 全社共有ナレッジ
   - "10_Dept/marketing/Best_Practices" # 部門共有ナレッジ
-  # 個人ナレッジは自動的に 96_Agents/[agent_id]/Library/ から読み込まれる
+  # 個人ナレッジは自動的に 96_Agents/[agent_id]/library/ から読み込まれる
 # --- AIモデル設定 ---
 foundation_model:                # 使用するAIモデル（必須）
   provider: "anthropic"         # APIプロバイダー（anthropic, openai, google, etc.）
@@ -176,6 +227,26 @@ performance_metrics:            # パフォーマンス指標（自動更新）
 workload_status: "normal"      # 負荷状態（normal, high, critical）
 ---
 ```
+
+#### エージェント生成プロセス
+
+1. **エージェント定義の追加:**
+   - `80_Team_Profiles/team_map.md` に新しいエージェント定義を追加
+   - リンク地図セクションにエージェントへのリンクを追加
+
+2. **エージェントディレクトリの生成:**
+   - `team_map.md` を読み取り、定義されたエージェントを検出
+   - `96_Agents/[agent_id]/` ディレクトリ構造を自動生成：
+     - `work/` (drafts/, review_logs/)
+     - `rules/`
+     - `library/`
+     - `performance/`
+     - `logs/knowledge_access/`
+
+3. **整合性チェック:**
+   - supervisor_idの存在確認
+   - 循環参照の検出
+   - 必須フィールドの検証
 
 #### フィールド詳細
 
@@ -306,7 +377,7 @@ workload_status: "normal"      # 負荷状態（normal, high, critical）
 #### 4.3.1 プロセスフロー
 
 1. **Self-Update（自己更新）**
-   - エージェントは自身のYAML（`96_Agents/[agent_id]/profile.md`）の `learned_lessons` に今回の教訓を追記
+   - エージェントは `80_Team_Profiles/team_map.md` 内の自身の定義セクションの `learned_lessons` に今回の教訓を追記
    - ファイルロック機構を使用して同時更新を防止
    - 追記形式: `"YYYY-MM-DD: [教訓の内容]"`
    - 教訓は具体的で再利用可能な形式で記述
@@ -456,11 +527,11 @@ workload_status: "normal"      # 負荷状態（normal, high, critical）
     - 予想されるコスト影響
 - **承認後:**
   - Userの承認後、新しいエージェントを生成：
-    1. `96_Agents/[agent_id]/` ディレクトリ構造を作成（work/, rules/, library/, performance/, logs/）
-    2. `96_Agents/[agent_id]/profile.md` を作成（エージェント定義の実体）
-    3. `80_Team_Profiles/[agent_id].md` をシンボリックリンクとして作成（96_Agents/[agent_id]/profile.mdへの参照）
-    4. supervisor_idの整合性チェック（存在確認、循環参照チェック）
-    5. `current_headcount` を更新
+    1. `80_Team_Profiles/team_map.md` に新しいエージェント定義を追加
+    2. `team_map.md` のリンク地図セクションにエージェントへのリンクを追加
+    3. supervisor_idの整合性チェック（存在確認、循環参照チェック）
+    4. `96_Agents/[agent_id]/` ディレクトリ構造を自動生成（work/, rules/, library/, performance/, logs/）
+    5. `current_headcount` を更新（親エージェントの定義を更新）
 
 #### 4.4.3 ルール更新（Rule Update）
 
@@ -796,7 +867,9 @@ workload_status: "normal"      # 負荷状態（normal, high, critical）
   - YAMLファイルの追加のみで組織をスケール可能とする
 - **実装:**
   - `AgentNode` クラスを実装
-  - `80_Team_Profiles/` 内のYAMLファイルをスキャンしてエージェントを動的に生成
+  - `80_Team_Profiles/team_map.md` を読み取り、エージェント定義を解析
+  - 各エージェント定義セクションからエージェントを動的に生成
+  - `96_Agents/[agent_id]/` ディレクトリ構造を自動生成
   - LangGraphのノードを動的に構築
 
 #### 5.3.2 ルールの階層管理
@@ -832,13 +905,14 @@ workload_status: "normal"      # 負荷状態（normal, high, critical）
 #### 5.4.1 エージェント定義の整合性管理
 
 - **要件:**
-  - `80_Team_Profiles/[agent_id].md` と `96_Agents/[agent_id]/profile.md` の関係を明確化
+  - `80_Team_Profiles/team_map.md` が唯一のエージェント定義の正（Single Source of Truth）
+  - `96_Agents/[agent_id]/` は `team_map.md` から生成される
   - データの二重管理を防止
 - **実装:**
-  - `96_Agents/[agent_id]/profile.md` を実体とする
-  - `80_Team_Profiles/[agent_id].md` はシンボリックリンクとして自動生成
-  - エージェント生成時に自動的にシンボリックリンクを作成
-  - 整合性チェック機能を実装（定期的に検証）
+  - `80_Team_Profiles/team_map.md` を唯一の定義ファイルとする
+  - エージェント生成時は `team_map.md` を更新し、`96_Agents/[agent_id]/` を自動生成
+  - `team_map.md` の整合性チェック機能を実装（定期的に検証）
+  - `96_Agents/[agent_id]/` と `team_map.md` の不整合を検出
 
 #### 5.4.2 supervisor_idの整合性チェック
 
@@ -957,13 +1031,15 @@ workload_status: "normal"      # 負荷状態（normal, high, critical）
 - [ ] ナレッジ階層ディレクトリ（95_Library/00_Global, 10_Dept）を作成
 - [ ] エージェント個別領域ディレクトリ（96_Agents/[agent_id]/）の動的生成機能を実装
 - [ ] エージェント統合構成の実装：
-  - [ ] `96_Agents/[agent_id]/profile.md` の作成（80_Team_Profilesとの連携）
+  - [ ] team_map.md のパーサー実装（エージェント定義セクションの解析）
   - [ ] `96_Agents/[agent_id]/work/` の作成（drafts/, review_logs/）
   - [ ] `96_Agents/[agent_id]/rules/` の作成
   - [ ] `96_Agents/[agent_id]/library/` の作成
   - [ ] `96_Agents/[agent_id]/performance/` の作成
   - [ ] `96_Agents/[agent_id]/logs/knowledge_access/` の作成
-- [ ] 80_Team_Profiles/[agent_id].md と 96_Agents/[agent_id]/profile.md の連携（シンボリックリンクまたは参照）
+- [ ] 80_Team_Profiles/team_map.md の実装（全エージェント定義の統合）
+- [ ] team_map.md から 96_Agents/[agent_id]/ の自動生成機能
+- [ ] リンク地図の自動生成機能
 
 ### 6.2 エージェントシステム
 - [ ] `AgentNode` クラスを実装
@@ -1192,13 +1268,21 @@ workload_status: "normal"      # 負荷状態（normal, high, critical）
 
 ---
 
-**ドキュメントバージョン:** 1.3  
+**ドキュメントバージョン:** 1.4  
 **最終更新日:** 2025-12-26  
 **作成者:** A.K.A.T.S.U.K.I. プロジェクトチーム
 
 ---
 
 ## 変更履歴
+
+### v1.4 (2025-12-26)
+- エージェント定義ファイルの統合
+  - 80_Team_Profiles/team_map.md に全エージェント定義を統合（1ファイル管理）
+  - team_map.md 内にエージェントリンク地図を形成
+  - team_map.md を正（Single Source of Truth）として、96_Agents/[agent_id]/ を自動生成する設計に変更
+  - データの二重管理を解消
+  - エージェント生成プロセスの明確化
 
 ### v1.3 (2025-12-26)
 - データ整合性とエラーハンドリングの強化
