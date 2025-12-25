@@ -47,10 +47,10 @@
   ├── 00_Strategy_Input/       # [User I/O] 戦略指示書格納（Trigger）
   ├── 10_Decision_Board/       # [User I/O] 承認・決裁・相談案件の提示
   ├── 20_Approved_Outputs/     # [Storage] 承認済み成果物のアーカイブ
-  ├── 30_Work_Space/           # [Runtime] 作業用一時領域（ステート管理対象）
-  │   ├── 01_Drafts/           # 作成中の成果物（エージェントIDでサブディレクトリ分離）
-  │   └── 02_Review_Logs/      # 修正指示・レビュー記録（エージェントIDでサブディレクトリ分離）
+  ├── 30_Work_Space/           # [Runtime] 一時作業領域（自動削除対象の一時ファイルのみ）
+  │   └── temp/                # 一時ファイル（ステート管理対象外の一時データ）
   ├── 80_Team_Profiles/        # [DB: HR] エージェント定義ファイル（YAML+MD）
+  │   └── [agent_id].md        # エージェント定義（96_Agents/[agent_id]/profile.mdへの参照またはシンボリックリンク）
   ├── 90_Rules/                # [DB: Legal] 業務ルール・ガイドライン（階層管理）
   │   ├── 00_Global/           # 全社共通ルール（全エージェントに適用）
   │   ├── 10_Dept/             # 部門ルール（特定部門に適用）
@@ -60,25 +60,29 @@
   ├── 95_Library/              # [DB: Knowledge] 共有ナレッジ・外部情報・学習履歴
   │   ├── 00_Global/           # 全社共有ナレッジ
   │   └── 10_Dept/             # 部門共有ナレッジ
-  ├── 96_Agents/               # [DB: Agent-Specific] エージェント個別領域
-  │   └── [agent_id]/          # エージェントごとのディレクトリ
-  │       ├── Rules/           # 個人ルール（このエージェント専用）
-  │       ├── Library/         # 個人ナレッジ（このエージェントが収集した知識）
-  │       ├── Work_Space/      # 個人作業領域（必要に応じて）
-  │       └── Performance/     # パフォーマンス記録・評価履歴
+  │       └── [dept_id]/
+  ├── 96_Agents/               # [DB: Agent-Specific] エージェント個別領域（統合構成）
+  │   └── [agent_id]/          # エージェントごとのディレクトリ（全データを統合）
+  │       ├── profile.md       # エージェント定義（80_Team_Profiles/[agent_id].mdの実体または参照元）
+  │       ├── work/            # 作業領域（30_Work_Spaceの代替、エージェント固有）
+  │       │   ├── drafts/      # 作成中の成果物
+  │       │   └── review_logs/ # 修正指示・レビュー記録
+  │       ├── rules/           # 個人ルール（このエージェント専用）
+  │       ├── library/         # 個人ナレッジ（このエージェントが収集した知識）
+  │       ├── performance/     # パフォーマンス記録・評価履歴
+  │       └── logs/            # エージェント固有のログ
+  │           └── knowledge_access/  # ナレッジアクセスログ
   ├── 97_Communication/        # [DB: Collaboration] エージェント間コミュニケーション
   │   ├── Conversations/      # エージェント間の会話記録
   │   ├── Decisions/           # 意思決定の記録
   │   └── Dependencies/        # タスク間の依存関係マップ
   ├── 98_Metrics/              # [DB: Analytics] 組織運営メトリクス
-  │   ├── Performance/         # パフォーマンス指標
+  │   ├── Performance/         # パフォーマンス指標（組織全体・部門別集計）
   │   ├── Quality/             # 品質メトリクス
   │   ├── Risk/                # リスク評価記録
   │   └── Health/             # システム健全性チェック
-  └── 99_Logs/                 # [System] 実行ログ・コスト管理ログ
-      ├── cost_tracking.log    # コスト追跡ログ
-      └── knowledge_access/    # ナレッジアクセスログ
-          └── [agent_id]/      # エージェントごとのアクセスログ
+  └── 99_Logs/                 # [System] システム全体の実行ログ・コスト管理ログ
+      └── cost_tracking.log    # コスト追跡ログ（全エージェント統合）
 ```
 
 #### ディレクトリの役割詳細
@@ -88,28 +92,28 @@
 | `00_Strategy_Input/` | 戦略指示書の格納 | User → System | システムのトリガーとして機能 |
 | `10_Decision_Board/` | 承認・決裁・相談案件の提示 | System → User | Userの意思決定を待つ領域 |
 | `20_Approved_Outputs/` | 承認済み成果物のアーカイブ | System | 最終的な成果物を永続保存 |
-| `30_Work_Space/` | 作業用一時領域 | System (Runtime) | LangGraphのステート管理対象 |
-| `30_Work_Space/01_Drafts/[agent_id]/` | 作成中の成果物 | System | エージェントごとに分離された作業中のドラフト |
-| `30_Work_Space/02_Review_Logs/[agent_id]/` | 修正指示・レビュー記録 | System | エージェントごとに分離されたレビュー履歴 |
-| `80_Team_Profiles/` | エージェント定義ファイル | System | YAML+MD形式でエージェント情報を管理 |
+| `30_Work_Space/temp/` | 一時作業領域 | System (Runtime) | 自動削除対象の一時ファイルのみ。ステート管理対象外 |
+| `80_Team_Profiles/[agent_id].md` | エージェント定義ファイル | System | YAML+MD形式。96_Agents/[agent_id]/profile.mdへの参照またはシンボリックリンク |
 | `90_Rules/00_Global/` | 全社共通ルール | System | 全エージェントに適用されるルール |
 | `90_Rules/10_Dept/[dept_id]/` | 部門ルール | System | 特定部門に適用されるルール |
 | `90_Rules/20_Cross_Dept/` | 複数部門共通ルール | System | 複数の部門に共通して適用されるルール |
 | `95_Library/00_Global/` | 全社共有ナレッジ | System | 全エージェントが参照可能な知識 |
 | `95_Library/10_Dept/[dept_id]/` | 部門共有ナレッジ | System | 特定部門内で共有される知識 |
-| `96_Agents/[agent_id]/Rules/` | 個人ルール | System | 特定エージェント専用のルール |
-| `96_Agents/[agent_id]/Library/` | 個人ナレッジ | System | エージェントが個別に収集・蓄積した知識 |
-| `96_Agents/[agent_id]/Work_Space/` | 個人作業領域 | System | エージェント専用の作業領域（必要に応じて） |
-| `96_Agents/[agent_id]/Performance/` | パフォーマンス記録 | System | エージェントの評価履歴、改善提案 |
+| `96_Agents/[agent_id]/profile.md` | エージェント定義（実体） | System | エージェント定義の実体。80_Team_Profilesから参照 |
+| `96_Agents/[agent_id]/work/drafts/` | 作成中の成果物 | System | エージェント固有の作業中のドラフト（30_Work_Spaceの代替） |
+| `96_Agents/[agent_id]/work/review_logs/` | 修正指示・レビュー記録 | System | エージェント固有のレビュー履歴（30_Work_Spaceの代替） |
+| `96_Agents/[agent_id]/rules/` | 個人ルール | System | 特定エージェント専用のルール |
+| `96_Agents/[agent_id]/library/` | 個人ナレッジ | System | エージェントが個別に収集・蓄積した知識 |
+| `96_Agents/[agent_id]/performance/` | パフォーマンス記録 | System | エージェントの評価履歴、改善提案 |
+| `96_Agents/[agent_id]/logs/knowledge_access/` | ナレッジアクセスログ | System | エージェント固有のナレッジ参照記録 |
 | `97_Communication/Conversations/` | エージェント間会話 | System | エージェント間のコミュニケーション記録 |
 | `97_Communication/Decisions/` | 意思決定記録 | System | 重要な意思決定の記録と根拠 |
 | `97_Communication/Dependencies/` | 依存関係マップ | System | タスク間の依存関係、クリティカルパス |
-| `98_Metrics/Performance/` | パフォーマンス指標 | System | エージェント・部門・組織全体のKPI |
+| `98_Metrics/Performance/` | パフォーマンス指標 | System | 組織全体・部門別の集計KPI（個別は96_Agents/[agent_id]/performance/） |
 | `98_Metrics/Quality/` | 品質メトリクス | System | 品質スコア、レビュー通過率等 |
 | `98_Metrics/Risk/` | リスク評価記録 | System | リスクの検出・評価・対応履歴 |
 | `98_Metrics/Health/` | システム健全性 | System | システム全体の健康状態チェック結果 |
-| `99_Logs/` | 実行ログ・コスト管理ログ | System | システムの動作記録とコスト追跡 |
-| `99_Logs/knowledge_access/[agent_id]/` | ナレッジアクセスログ | System | エージェントごとのナレッジ参照記録 |
+| `99_Logs/cost_tracking.log` | コスト追跡ログ | System | システム全体のコスト追跡（全エージェント統合） |
 
 ---
 
@@ -209,14 +213,14 @@ workload_status: "normal"      # 負荷状態（normal, high, critical）
 
 2. **Assignment（割り当て）**
    - 担当Managerへタスクを割り当て
-   - タスク情報を `30_Work_Space/01_Drafts/[agent_id]/` に記録
+   - タスク情報を `96_Agents/[agent_id]/work/drafts/` に記録
 
 3. **Critique（批判的検証 - Bottom-up）**
    - 指示を受けたエージェントは即座に実行せず、以下を実施：
      - **ナレッジ参照（必須）:** 関連ナレッジを必ず検索・参照する
        - 自身のナレッジ（`learned_lessons`、`96_Agents/[agent_id]/Library/`）を参照
        - 共有ライブラリ（`95_Library/00_Global/`、`95_Library/10_Dept/[dept_id]/`）を検索
-       - ナレッジ参照ログを記録（`99_Logs/knowledge_access/[agent_id]/[date].log`）
+       - ナレッジ参照ログを記録（`96_Agents/[agent_id]/logs/knowledge_access/[date].log`）
      - 関連ルールを階層的に確認：
        - 全社ルール（`90_Rules/00_Global/`）
        - 部門ルール（`90_Rules/10_Dept/[dept_id]/`）
@@ -234,13 +238,13 @@ workload_status: "normal"      # 負荷状態（normal, high, critical）
    - 矛盾やリスクがある場合：
      - 代替案を必ず提示（代替案なしの拒否は不可）
      - 上司と合意形成を行う（`10_Decision_Board/` に相談チケットを発行）
-   - 検証結果は `30_Work_Space/02_Review_Logs/[agent_id]/critique/` に記録
+   - 検証結果は `96_Agents/[agent_id]/work/review_logs/critique/` に記録
 
 #### 4.1.2 実装要件
 
 - Critique機能は必須機能として実装
 - エージェントは常に「指示の妥当性」を検証するプロンプトを持つ
-- 検証結果は `30_Work_Space/02_Review_Logs/` に記録
+- 検証結果は `96_Agents/[agent_id]/work/review_logs/` に記録
 
 ### 4.2 実行と承認 (Execution & Review Phase)
 
@@ -248,7 +252,7 @@ workload_status: "normal"      # 負荷状態（normal, high, critical）
 
 1. **Drafting（ドラフト作成）**
    - Workerがツールを使用してドラフトを作成
-   - ドラフトは `30_Work_Space/01_Drafts/[agent_id]/` に保存
+   - ドラフトは `96_Agents/[agent_id]/work/drafts/` に保存
    - ドラフトにはメタデータ（作成者、作成日時、関連タスクID等）を付与
 
 2. **Review（Manager審査）**
@@ -270,7 +274,7 @@ workload_status: "normal"      # 負荷状態（normal, high, critical）
 
    **NG（差し戻し）の場合:**
    - 具体的な修正理由を添えて差し戻す
-   - 修正理由は `30_Work_Space/02_Review_Logs/[agent_id]/` に記録
+   - 修正理由は `96_Agents/[agent_id]/work/review_logs/` に記録
    - **ルール振り分け（Rule Routing）:** Managerは指摘内容を分析し、以下のいずれかに分類してルール化する：
      - **全社ルール** (`90_Rules/00_Global/`): 全エージェントに適用すべき指摘
      - **部門ルール** (`90_Rules/10_Dept/[dept_id]/`): 特定部門に適用すべき指摘
@@ -287,7 +291,7 @@ workload_status: "normal"      # 負荷状態（normal, high, critical）
    **OK（承認）の場合:**
    - 成果物を承認
    - 上位階層へ統合（または `20_Approved_Outputs/` へ移動）
-   - 承認記録を `30_Work_Space/02_Review_Logs/[agent_id]/` に保存
+   - 承認記録を `96_Agents/[agent_id]/work/review_logs/` に保存
 
 #### 4.2.2 実装要件
 
@@ -327,7 +331,7 @@ workload_status: "normal"      # 負荷状態（normal, high, critical）
    - **知識の検証:** 共有前にナレッジの正確性と有用性を検証
    - **ナレッジの活用チェック（必須）:**
      - タスク実行前に、関連ナレッジを必ず検索・参照することを強制
-     - ナレッジ参照ログを記録（`99_Logs/knowledge_access/[agent_id]/[date].log`）
+     - ナレッジ参照ログを記録（`96_Agents/[agent_id]/logs/knowledge_access/[date].log`）
      - 参照されなかったナレッジを検出し、原因を分析
 
 3. **Self-Improvement（自己改善）**
@@ -632,7 +636,7 @@ workload_status: "normal"      # 負荷状態（normal, high, critical）
 - **代替案の提示義務:**
   - 指示に問題がある場合、代替案を必ず提示
   - 代替案なしの拒否は不可（建設的な提案が必須）
-  - 代替案は `30_Work_Space/02_Review_Logs/[agent_id]/alternatives/` に記録
+   - 代替案は `96_Agents/[agent_id]/work/review_logs/alternatives/` に記録
 
 #### 4.11.2 同意率の監視
 
@@ -825,10 +829,18 @@ workload_status: "normal"      # 負荷状態（normal, high, critical）
 ### 6.1 ディレクトリ構造
 - [ ] `AI_Manager_Root` ディレクトリと全サブディレクトリを作成
 - [ ] システム全体の共有ディレクトリ（00_Strategy_Input, 10_Decision_Board等）を作成
+- [ ] 30_Work_Spaceを簡素化（一時ファイルのみ、temp/サブディレクトリ）
 - [ ] ルール階層ディレクトリ（90_Rules/00_Global, 10_Dept, 20_Cross_Dept）を作成
 - [ ] ナレッジ階層ディレクトリ（95_Library/00_Global, 10_Dept）を作成
 - [ ] エージェント個別領域ディレクトリ（96_Agents/[agent_id]/）の動的生成機能を実装
-- [ ] エージェントごとの作業領域分離（30_Work_Space/01_Drafts/[agent_id]/等）を実装
+- [ ] エージェント統合構成の実装：
+  - [ ] `96_Agents/[agent_id]/profile.md` の作成（80_Team_Profilesとの連携）
+  - [ ] `96_Agents/[agent_id]/work/` の作成（drafts/, review_logs/）
+  - [ ] `96_Agents/[agent_id]/rules/` の作成
+  - [ ] `96_Agents/[agent_id]/library/` の作成
+  - [ ] `96_Agents/[agent_id]/performance/` の作成
+  - [ ] `96_Agents/[agent_id]/logs/knowledge_access/` の作成
+- [ ] 80_Team_Profiles/[agent_id].md と 96_Agents/[agent_id]/profile.md の連携（シンボリックリンクまたは参照）
 
 ### 6.2 エージェントシステム
 - [ ] `AgentNode` クラスを実装
@@ -1033,13 +1045,20 @@ workload_status: "normal"      # 負荷状態（normal, high, critical）
 
 ---
 
-**ドキュメントバージョン:** 1.1  
+**ドキュメントバージョン:** 1.2  
 **最終更新日:** 2025-12-26  
 **作成者:** A.K.A.T.S.U.K.I. プロジェクトチーム
 
 ---
 
 ## 変更履歴
+
+### v1.2 (2025-12-26)
+- ディレクトリ構造の改善（エージェント中心の統合構成）
+  - 30_Work_Spaceを簡素化（一時ファイルのみ）
+  - 96_Agents/[agent_id]/配下にエージェント関連データを統合（work/, rules/, library/, performance/, logs/）
+  - エージェント情報の一貫性とアクセス効率を向上
+  - データ分散の問題を解決
 
 ### v1.1 (2025-12-26)
 - エージェント個別領域（96_Agents/）の追加
